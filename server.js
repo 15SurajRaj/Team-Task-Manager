@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 const { z } = require("zod");
 
 const app = express();
@@ -15,37 +15,26 @@ const DB_PATH = path.join(DATA_DIR, "team-task-manager.sqlite");
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const db = new sqlite3.Database(DB_PATH);
+const db = new Database(DB_PATH);
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(error) {
-      if (error) reject(error);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
+  const stmt = db.prepare(sql);
+  const result = stmt.run(params);
+  return Promise.resolve({ id: result.lastInsertRowid, changes: result.changes });
 }
 
 function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (error, row) => {
-      if (error) reject(error);
-      else resolve(row);
-    });
-  });
+  const stmt = db.prepare(sql);
+  return Promise.resolve(stmt.get(params));
 }
 
 function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (error, rows) => {
-      if (error) reject(error);
-      else resolve(rows);
-    });
-  });
+  const stmt = db.prepare(sql);
+  return Promise.resolve(stmt.all(params));
 }
 
 async function initDb() {
